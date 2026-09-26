@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.parvez.booker.ui.components.AddBookDialog
 import com.parvez.booker.ui.components.LoginDialog
+import com.parvez.booker.ui.viewmodel.BookUiState
 import com.parvez.booker.ui.viewmodel.BookViewModel
 
 /**
@@ -85,6 +86,8 @@ fun BookScreen(
                 BookListContent(
                     uiState = uiState,
                     onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                    onSearchTypeChange = { viewModel.updateSearchType(it) },
+                    onApiSearchSubmit = { viewModel.performApiSearch() },
                     onFilterSelect = { viewModel.updateFilter(it) },
                     onRefresh = { viewModel.refreshBooks() },
                     onOpenAddBook = { viewModel.setAddBookDialogVisible(true) },
@@ -114,7 +117,7 @@ fun BookScreen(
                 }
             }
 
-            if (uiState.showLoginDialog) {
+            if (showLoginDialogState(uiState)) {
                 LoginDialog(
                     isLoggingIn = uiState.isLoggingIn,
                     errorMessage = uiState.loginErrorMessage,
@@ -140,4 +143,8 @@ fun BookScreen(
             }
         }
     }
+}
+
+private fun showLoginDialogState(uiState: BookUiState): Boolean {
+    return uiState.showLoginDialog
 }

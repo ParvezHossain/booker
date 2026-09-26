@@ -70,14 +70,52 @@ class BookViewModel(
     }
 
     /**
-     * Refreshes book list from the backend API.
+     * Refreshes complete book list from the backend API.
      */
     fun refreshBooks() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingBooks = true) }
+            _uiState.update { it.copy(isLoadingBooks = true, searchQuery = "") }
             try {
                 val books = repository.getBooks()
                 _uiState.update { it.copy(books = books, isLoadingBooks = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoadingBooks = false) }
+            }
+        }
+    }
+
+    /**
+     * Performs an API search by title, author, or ISBN endpoint.
+     */
+    fun performApiSearch() {
+        val query = _uiState.value.searchQuery.trim()
+        val searchType = _uiState.value.searchType
+
+        if (query.isBlank()) {
+            refreshBooks()
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingBooks = true) }
+            try {
+                val results = when (searchType) {
+                    SearchType.ISBN -> {
+                        try {
+                            val book = repository.getBookByIsbn(query)
+                            listOf(book)
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+                    }
+                    SearchType.TITLE_AUTHOR -> {
+                        repository.getBooks(title = query, author = query)
+                    }
+                    SearchType.LOCAL -> {
+                        repository.getBooks(title = query, author = query)
+                    }
+                }
+                _uiState.update { it.copy(books = results, isLoadingBooks = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoadingBooks = false) }
             }
@@ -109,6 +147,13 @@ class BookViewModel(
      */
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    /**
+     * Updates active search mode type (LOCAL, TITLE_AUTHOR, ISBN).
+     */
+    fun updateSearchType(type: SearchType) {
+        _uiState.update { it.copy(searchType = type) }
     }
 
     /**

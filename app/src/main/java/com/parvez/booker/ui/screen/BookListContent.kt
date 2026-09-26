@@ -42,6 +42,7 @@ import com.parvez.booker.ui.components.FilterBadge
 import com.parvez.booker.ui.components.StatCard
 import com.parvez.booker.ui.viewmodel.BookFilterOption
 import com.parvez.booker.ui.viewmodel.BookUiState
+import com.parvez.booker.ui.viewmodel.SearchType
 
 /**
  * Library dashboard view containing header, metric stats, search, filter chips, and book list cards.
@@ -50,6 +51,8 @@ import com.parvez.booker.ui.viewmodel.BookUiState
 fun BookListContent(
     uiState: BookUiState,
     onSearchQueryChange: (String) -> Unit,
+    onSearchTypeChange: (SearchType) -> Unit,
+    onApiSearchSubmit: () -> Unit,
     onFilterSelect: (BookFilterOption) -> Unit,
     onRefresh: () -> Unit,
     onOpenAddBook: () -> Unit,
@@ -161,17 +164,65 @@ fun BookListContent(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // Search Bar
+        // Search Category Selectors
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterBadge(
+                label = "Filter Instant",
+                isSelected = uiState.searchType == SearchType.LOCAL,
+                onClick = { onSearchTypeChange(SearchType.LOCAL) }
+            )
+            FilterBadge(
+                label = "Title & Author API",
+                isSelected = uiState.searchType == SearchType.TITLE_AUTHOR,
+                onClick = { onSearchTypeChange(SearchType.TITLE_AUTHOR) }
+            )
+            FilterBadge(
+                label = "ISBN API",
+                isSelected = uiState.searchType == SearchType.ISBN,
+                onClick = { onSearchTypeChange(SearchType.ISBN) }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Search Bar with Search Action Button
         OutlinedTextField(
             value = uiState.searchQuery,
             onValueChange = onSearchQueryChange,
-            placeholder = { Text("Search by title, author, or ISBN...", color = Color(0xFF9E927A)) },
+            placeholder = {
+                val hint = when (uiState.searchType) {
+                    SearchType.LOCAL -> "Instant filter title, author, ISBN..."
+                    SearchType.TITLE_AUTHOR -> "e.g. Joshua Bloch or Effective Java"
+                    SearchType.ISBN -> "e.g. 9780134685991"
+                }
+                Text(hint, color = Color(0xFF9E927A), fontSize = 13.sp)
+            },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
                     tint = Color(0xFFFFD36E)
                 )
+            },
+            trailingIcon = {
+                if (uiState.searchType != SearchType.LOCAL && uiState.searchQuery.isNotBlank()) {
+                    Button(
+                        onClick = onApiSearchSubmit,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFFD36E),
+                            contentColor = Color(0xFF1A1028)
+                        ),
+                        modifier = Modifier
+                            .padding(end = 4.dp)
+                            .height(36.dp)
+                    ) {
+                        Text("Search", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -232,7 +283,7 @@ fun BookListContent(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = if (uiState.searchQuery.isNotBlank()) "No books match your search." else "No books found in library.",
+                        text = if (uiState.searchQuery.isNotBlank()) "No books found matching your query." else "No books found in library.",
                         color = Color(0xFFD9C7A3),
                         fontSize = 16.sp,
                         fontFamily = FontFamily.Serif

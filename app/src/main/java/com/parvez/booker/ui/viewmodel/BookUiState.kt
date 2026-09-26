@@ -3,6 +3,15 @@ package com.parvez.booker.ui.viewmodel
 import com.parvez.booker.data.model.Book
 
 /**
+ * Search mode options for querying the library API or local list.
+ */
+enum class SearchType {
+    LOCAL,
+    TITLE_AUTHOR,
+    ISBN
+}
+
+/**
  * Filter options for the library book list.
  */
 enum class BookFilterOption {
@@ -22,6 +31,7 @@ enum class BookFilterOption {
  * @property isLoadingBooks True during background book list refreshing.
  * @property loginErrorMessage Error message string if login attempt fails.
  * @property searchQuery Current query typed in the search bar.
+ * @property searchType Current active search category (LOCAL, TITLE_AUTHOR, ISBN).
  * @property selectedFilter Currently active book filter option.
  */
 data class BookUiState(
@@ -33,6 +43,7 @@ data class BookUiState(
     val isLoadingBooks: Boolean = false,
     val loginErrorMessage: String? = null,
     val searchQuery: String = "",
+    val searchType: SearchType = SearchType.LOCAL,
     val selectedFilter: BookFilterOption = BookFilterOption.ALL
 ) {
     /**
@@ -40,7 +51,7 @@ data class BookUiState(
      */
     val filteredBooks: List<Book>
         get() = books.filter { book ->
-            val matchesSearch = searchQuery.isBlank() ||
+            val matchesSearch = searchQuery.isBlank() || searchType != SearchType.LOCAL ||
                     (book.title?.contains(searchQuery, ignoreCase = true) == true) ||
                     (book.author?.contains(searchQuery, ignoreCase = true) == true) ||
                     (book.isbn?.contains(searchQuery, ignoreCase = true) == true)

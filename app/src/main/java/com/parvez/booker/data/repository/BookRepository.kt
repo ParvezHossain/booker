@@ -26,10 +26,17 @@ class BookRepository {
     }
 
     /**
-     * Fetches book list from server.
+     * Fetches complete book list or filters by title/author from server.
      */
-    suspend fun getBooks(): List<Book> {
-        return RetrofitClient.bookApi.getBooks()
+    suspend fun getBooks(title: String? = null, author: String? = null): List<Book> {
+        return RetrofitClient.bookApi.getBooks(title = title, author = author)
+    }
+
+    /**
+     * Fetches book by exact ISBN number from server.
+     */
+    suspend fun getBookByIsbn(isbn: String): Book {
+        return RetrofitClient.bookApi.getBookByIsbn(isbn)
     }
 
     /**
