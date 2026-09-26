@@ -30,6 +30,8 @@ enum class BookFilterOption {
  * @property isLoggingIn True during login network request execution.
  * @property isLoadingBooks True during background book list refreshing.
  * @property loginErrorMessage Error message string if login attempt fails.
+ * @property userFeedbackMessage Informational or error banner message for user feedback.
+ * @property newBookNotification Newly created book entity triggering an in-app notification banner.
  * @property searchQuery Current query typed in the search bar.
  * @property searchType Current active search category (LOCAL, TITLE_AUTHOR, ISBN).
  * @property selectedFilter Currently active book filter option.
@@ -42,6 +44,8 @@ data class BookUiState(
     val isLoggingIn: Boolean = false,
     val isLoadingBooks: Boolean = false,
     val loginErrorMessage: String? = null,
+    val userFeedbackMessage: String? = null,
+    val newBookNotification: Book? = null,
     val searchQuery: String = "",
     val searchType: SearchType = SearchType.LOCAL,
     val selectedFilter: BookFilterOption = BookFilterOption.ALL

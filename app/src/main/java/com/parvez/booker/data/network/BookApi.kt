@@ -5,6 +5,7 @@ import com.parvez.booker.data.model.BookRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -38,4 +39,13 @@ interface BookApi {
      */
     @POST("books")
     suspend fun createBook(@Body request: BookRequest): Book
+
+    /**
+     * Updates an existing book entity on the backend by ID.
+     */
+    @PUT("books/{id}")
+    suspend fun updateBook(
+        @Path("id") id: Long,
+        @Body request: BookRequest
+    ): Book
 }

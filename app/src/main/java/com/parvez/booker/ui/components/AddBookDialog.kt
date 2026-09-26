@@ -47,11 +47,14 @@ import com.parvez.booker.data.model.BookRequest
  */
 @Composable
 fun AddBookDialog(
+    initialQuery: String? = null,
     onDismiss: () -> Unit,
     onSubmitBook: (BookRequest, (String) -> Unit) -> Unit
 ) {
-    var isbn by remember { mutableStateOf("") }
-    var title by remember { mutableStateOf("") }
+    val isDigitsOnly = initialQuery?.trim()?.all { it.isDigit() } == true && (initialQuery.trim().length in 10..13)
+
+    var isbn by remember { mutableStateOf(if (isDigitsOnly) initialQuery?.trim().orEmpty() else "") }
+    var title by remember { mutableStateOf(if (!isDigitsOnly) initialQuery?.trim().orEmpty() else "") }
     var author by remember { mutableStateOf("") }
     var publishedDate by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }

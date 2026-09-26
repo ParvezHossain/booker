@@ -1,9 +1,11 @@
 package com.parvez.booker.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.parvez.booker.data.model.Book
 import com.parvez.booker.data.model.BookRequest
+import com.parvez.booker.data.network.BookSseEvent
 import com.parvez.booker.data.repository.BookRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,16 +13,103 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 /**
- * ViewModel managing UI state and business logic for the Booker application.
+ * AndroidViewModel managing UI state, live SSE notifications, and business logic for Booker.
  */
 class BookViewModel(
-    private val repository: BookRepository = BookRepository()
-) : ViewModel() {
+    application: Application,
+    private val repository: BookRepository = BookRepository(application)
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(BookUiState())
     val uiState: StateFlow<BookUiState> = _uiState.asStateFlow()
+
+    init {
+        observeSseEvents()
+    }
+
+    private fun observeSseEvents() {
+        viewModelScope.launch {
+            repository.sseEvents.collect { event ->
+                when (event) {
+                    is BookSseEvent.BookCreated -> {
+                        val newBook = event.book
+                        _uiState.update { current ->
+                            val alreadyExists = current.books.any {
+                                (it.id != null && it.id == newBook.id) || (!newBook.isbn.isNullOrBlank() && it.isbn == newBook.isbn)
+                            }
+                            val updatedList = if (alreadyExists) {
+                                current.books.map {
+                                    if ((it.id != null && it.id == newBook.id) || (!newBook.isbn.isNullOrBlank() && it.isbn == newBook.isbn)) newBook else it
+                                }
+                            } else {
+                                current.books + newBook
+                            }
+                            current.copy(
+                                books = updatedList,
+                                newBookNotification = newBook,
+                                userFeedbackMessage = "New book added: ${newBook.title ?: "Untitled"}"
+                            )
+                        }
+                    }
+                    is BookSseEvent.ResyncRequired -> {
+                        refreshBooks()
+                    }
+                    is BookSseEvent.AuthError -> {
+                        logout()
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Called when lifecycle transitions to foreground.
+     */
+    fun onAppForegrounded() {
+        if (_uiState.value.isAuthenticated) {
+            repository.resumeSse()
+        }
+    }
+
+    /**
+     * Called when lifecycle transitions to background.
+     */
+    fun onAppBackgrounded() {
+        repository.pauseSse()
+    }
+
+    /**
+     * Dismisses active notification banner.
+     */
+    fun dismissNotification() {
+        _uiState.update { it.copy(newBookNotification = null) }
+    }
+
+    private fun formatErrorMessage(throwable: Throwable): String {
+        return when (throwable) {
+            is HttpException -> {
+                when (throwable.code()) {
+                    401 -> "Invalid username or password. Please try again."
+                    404 -> "No matching book found on the server."
+                    400 -> "Invalid request data. Please verify your input."
+                    500 -> "Server internal error. Please try again later."
+                    else -> "HTTP ${throwable.code()}: ${throwable.message()}"
+                }
+            }
+            is ConnectException, is UnknownHostException -> {
+                "Cannot connect to API (http://192.168.0.122:8080/api/). Check network."
+            }
+            is SocketTimeoutException -> {
+                "Server connection timed out. Please try again."
+            }
+            else -> throwable.localizedMessage ?: "An unexpected error occurred."
+        }
+    }
 
     /**
      * Authenticates user credentials with basic auth against the server.
@@ -36,18 +125,14 @@ class BookViewModel(
                         books = books,
                         isAuthenticated = true,
                         showLoginDialog = false,
-                        isLoggingIn = false
+                        isLoggingIn = false,
+                        userFeedbackMessage = null
                     )
                 }
             } catch (e: Exception) {
-                val errorMsg = if (e is HttpException && e.code() == 401) {
-                    "Invalid username or password"
-                } else {
-                    e.message ?: "Failed to connect to server"
-                }
                 _uiState.update {
                     it.copy(
-                        loginErrorMessage = errorMsg,
+                        loginErrorMessage = formatErrorMessage(e),
                         isLoggingIn = false
                     )
                 }
@@ -74,12 +159,12 @@ class BookViewModel(
      */
     fun refreshBooks() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingBooks = true, searchQuery = "") }
+            _uiState.update { it.copy(isLoadingBooks = true, userFeedbackMessage = null) }
             try {
                 val books = repository.getBooks()
-                _uiState.update { it.copy(books = books, isLoadingBooks = false) }
+                _uiState.update { it.copy(books = books, isLoadingBooks = false, searchQuery = "") }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoadingBooks = false) }
+                _uiState.update { it.copy(isLoadingBooks = false, userFeedbackMessage = formatErrorMessage(e)) }
             }
         }
     }
@@ -97,7 +182,7 @@ class BookViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingBooks = true) }
+            _uiState.update { it.copy(isLoadingBooks = true, userFeedbackMessage = null) }
             try {
                 val results = when (searchType) {
                     SearchType.ISBN -> {
@@ -108,16 +193,62 @@ class BookViewModel(
                             emptyList()
                         }
                     }
-                    SearchType.TITLE_AUTHOR -> {
-                        repository.getBooks(title = query, author = query)
-                    }
-                    SearchType.LOCAL -> {
+                    SearchType.TITLE_AUTHOR, SearchType.LOCAL -> {
                         repository.getBooks(title = query, author = query)
                     }
                 }
-                _uiState.update { it.copy(books = results, isLoadingBooks = false) }
+                val msg = if (results.isEmpty()) "No books found on server for '$query'." else null
+                _uiState.update { it.copy(books = results, isLoadingBooks = false, userFeedbackMessage = msg) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoadingBooks = false) }
+                _uiState.update { it.copy(isLoadingBooks = false, userFeedbackMessage = formatErrorMessage(e)) }
+            }
+        }
+    }
+
+    /**
+     * Toggles book reading completion status and updates backend/local state.
+     */
+    fun toggleBookCompletion(book: Book) {
+        val bookId = book.id
+        val newStatus = !book.completed
+        val updatedRequest = BookRequest(
+            isbn = book.isbn.orEmpty(),
+            title = book.title.orEmpty(),
+            author = book.author.orEmpty(),
+            publishedDate = book.publishedDate.orEmpty(),
+            description = book.description,
+            completed = newStatus
+        )
+
+        // Optimistically update local UI list
+        _uiState.update { state ->
+            val updatedBooks = state.books.map { item ->
+                if ((bookId != null && item.id == bookId) || (!book.isbn.isNullOrBlank() && item.isbn == book.isbn)) {
+                    item.copy(completed = newStatus)
+                } else item
+            }
+            state.copy(books = updatedBooks)
+        }
+
+        viewModelScope.launch {
+            if (bookId != null) {
+                try {
+                    val syncedBook = repository.updateBook(bookId, updatedRequest)
+                    _uiState.update { state ->
+                        val syncedBooks = state.books.map { item ->
+                            if (item.id == bookId) syncedBook else item
+                        }
+                        state.copy(books = syncedBooks, userFeedbackMessage = "Updated '${book.title}' status.")
+                    }
+                } catch (e: Exception) {
+                    _uiState.update { state ->
+                        state.copy(userFeedbackMessage = "Status updated locally (${if (newStatus) "Completed" else "In Progress"}).")
+                    }
+                }
+            } else {
+                _uiState.update { state ->
+                    state.copy(userFeedbackMessage = "Status updated locally (${if (newStatus) "Completed" else "In Progress"}).")
+                }
             }
         }
     }
@@ -132,12 +263,13 @@ class BookViewModel(
                 _uiState.update { current ->
                     current.copy(
                         books = current.books + newBook,
-                        showAddBookDialog = false
+                        showAddBookDialog = false,
+                        userFeedbackMessage = "Book '${newBook.title}' created successfully!"
                     )
                 }
                 onSuccess(newBook)
             } catch (e: Exception) {
-                onError(e.message ?: "Failed to create book")
+                onError(formatErrorMessage(e))
             }
         }
     }

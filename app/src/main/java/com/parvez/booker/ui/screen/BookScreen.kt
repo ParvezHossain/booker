@@ -17,6 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -25,18 +26,20 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.parvez.booker.ui.components.AddBookDialog
 import com.parvez.booker.ui.components.LoginDialog
-import com.parvez.booker.ui.viewmodel.BookUiState
 import com.parvez.booker.ui.viewmodel.BookViewModel
 
 /**
- * Top-level screen binding [BookViewModel] UI state with Compose components.
+ * Top-level screen binding [BookViewModel] UI state and lifecycle events with Compose components.
  */
 @Composable
 fun BookScreen(
@@ -44,6 +47,26 @@ fun BookScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Observe app lifecycle to manage shared SSE connection when foregrounded/backgrounded
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME -> {
+                    viewModel.onAppForegrounded()
+                }
+                Lifecycle.Event.ON_STOP, Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.onAppBackgrounded()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val backgroundBrush = Brush.verticalGradient(
         colors = listOf(
@@ -89,6 +112,8 @@ fun BookScreen(
                     onSearchTypeChange = { viewModel.updateSearchType(it) },
                     onApiSearchSubmit = { viewModel.performApiSearch() },
                     onFilterSelect = { viewModel.updateFilter(it) },
+                    onStatusToggle = { viewModel.toggleBookCompletion(it) },
+                    onDismissNotification = { viewModel.dismissNotification() },
                     onRefresh = { viewModel.refreshBooks() },
                     onOpenAddBook = { viewModel.setAddBookDialogVisible(true) },
                     onLogout = { viewModel.logout() }
@@ -117,7 +142,7 @@ fun BookScreen(
                 }
             }
 
-            if (showLoginDialogState(uiState)) {
+            if (uiState.showLoginDialog) {
                 LoginDialog(
                     isLoggingIn = uiState.isLoggingIn,
                     errorMessage = uiState.loginErrorMessage,
@@ -129,6 +154,7 @@ fun BookScreen(
 
             if (uiState.showAddBookDialog) {
                 AddBookDialog(
+                    initialQuery = uiState.searchQuery,
                     onDismiss = { viewModel.setAddBookDialogVisible(false) },
                     onSubmitBook = { request, onError ->
                         viewModel.createBook(
@@ -143,8 +169,4 @@ fun BookScreen(
             }
         }
     }
-}
-
-private fun showLoginDialogState(uiState: BookUiState): Boolean {
-    return uiState.showLoginDialog
 }

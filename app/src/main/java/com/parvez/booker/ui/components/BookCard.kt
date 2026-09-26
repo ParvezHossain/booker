@@ -2,6 +2,7 @@ package com.parvez.booker.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,7 +32,10 @@ import com.parvez.booker.data.model.Book
  * Card component presenting book title, author, description, ISBN, publication date, and completion status.
  */
 @Composable
-fun BookCard(book: Book) {
+fun BookCard(
+    book: Book,
+    onStatusToggle: ((Book) -> Unit)? = null
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -77,6 +81,8 @@ fun BookCard(book: Book) {
                 )
 
                 Surface(
+                    onClick = { onStatusToggle?.invoke(book) },
+                    enabled = onStatusToggle != null,
                     color = if (book.completed) Color(0xFF1B5E20) else Color(0xFF4A1212),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(
@@ -131,7 +137,10 @@ fun BookCard(book: Book) {
             Spacer(modifier = Modifier.height(6.dp))
 
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.then(
+                    if (onStatusToggle != null) Modifier.clickable { onStatusToggle(book) } else Modifier
+                )
             ) {
                 Text(
                     text = "Status: ",
@@ -140,7 +149,7 @@ fun BookCard(book: Book) {
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = if (book.completed) "Completed" else "Not Completed",
+                    text = if (book.completed) "Completed (Tap to change)" else "Not Completed (Tap to change)",
                     color = if (book.completed) Color(0xFF81C784) else Color(0xFFFF8A80),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold

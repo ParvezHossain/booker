@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -37,8 +38,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.parvez.booker.data.model.Book
 import com.parvez.booker.ui.components.BookCard
 import com.parvez.booker.ui.components.FilterBadge
+import com.parvez.booker.ui.components.NotificationBanner
 import com.parvez.booker.ui.components.StatCard
 import com.parvez.booker.ui.viewmodel.BookFilterOption
 import com.parvez.booker.ui.viewmodel.BookUiState
@@ -54,6 +57,8 @@ fun BookListContent(
     onSearchTypeChange: (SearchType) -> Unit,
     onApiSearchSubmit: () -> Unit,
     onFilterSelect: (BookFilterOption) -> Unit,
+    onStatusToggle: (Book) -> Unit,
+    onDismissNotification: () -> Unit,
     onRefresh: () -> Unit,
     onOpenAddBook: () -> Unit,
     onLogout: () -> Unit
@@ -136,6 +141,34 @@ fun BookListContent(
         }
 
         Spacer(modifier = Modifier.height(18.dp))
+
+        // Real-time SSE Notification Banner
+        if (uiState.newBookNotification != null) {
+            NotificationBanner(
+                book = uiState.newBookNotification,
+                onDismiss = onDismissNotification,
+                onClickNotification = { onDismissNotification() }
+            )
+        }
+
+        // Feedback / Error Banner if present
+        if (!uiState.userFeedbackMessage.isNullOrBlank()) {
+            Surface(
+                color = Color(0xFF3E2723),
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, Color(0xFFFFD36E)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                Text(
+                    text = uiState.userFeedbackMessage,
+                    color = Color(0xFFFFD36E),
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
 
         // Metrics Dashboard Row
         Row(
@@ -283,7 +316,7 @@ fun BookListContent(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = if (uiState.searchQuery.isNotBlank()) "No books found matching your query." else "No books found in library.",
+                        text = if (uiState.searchQuery.isNotBlank()) "No books found matching '${uiState.searchQuery}'" else "No books found in library.",
                         color = Color(0xFFD9C7A3),
                         fontSize = 16.sp,
                         fontFamily = FontFamily.Serif
@@ -297,7 +330,10 @@ fun BookListContent(
                         ),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("Add New Book", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (uiState.searchQuery.isNotBlank()) "Add '${uiState.searchQuery}' as New Book" else "Add New Book",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -307,7 +343,10 @@ fun BookListContent(
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(uiState.filteredBooks) { book ->
-                    BookCard(book = book)
+                    BookCard(
+                        book = book,
+                        onStatusToggle = onStatusToggle
+                    )
                 }
             }
         }
