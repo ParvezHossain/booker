@@ -12,3 +12,8 @@ local.properties
 *.apk
 *.aar
 *.keystore
+
+# Logs
+/log/
+/logs/
+*.log
