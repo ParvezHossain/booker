@@ -22,6 +22,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import java.io.InterruptedIOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
@@ -183,9 +184,13 @@ class BookSseManager(
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 isConnectedOrConnecting = false
-                Log.e("BookSseManager", "SSE Failure - HTTP ${response?.code}: ${t?.message}", t)
 
-                if (isStopped) return
+                if (isStopped || t?.message == "canceled" || t is InterruptedIOException) {
+                    Log.d("BookSseManager", "SSE Stream cancelled or stopped gracefully")
+                    return
+                }
+
+                Log.e("BookSseManager", "SSE Failure - HTTP ${response?.code}: ${t?.message}", t)
 
                 val responseCode = response?.code
 
