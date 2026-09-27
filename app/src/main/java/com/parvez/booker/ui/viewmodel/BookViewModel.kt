@@ -207,7 +207,9 @@ class BookViewModel(
                         }
                     }
                     SearchType.TITLE_AUTHOR, SearchType.LOCAL -> {
-                        repository.getBooks(title = query, author = query)
+                        val byTitle = try { repository.getBooks(title = query, author = null) } catch (e: Exception) { emptyList() }
+                        val byAuthor = try { repository.getBooks(title = null, author = query) } catch (e: Exception) { emptyList() }
+                        (byTitle + byAuthor).distinctBy { it.id ?: it.isbn ?: it.title }
                     }
                 }
                 val msg = if (results.isEmpty()) "No books found on server for '$query'." else null
