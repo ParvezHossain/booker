@@ -16,6 +16,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +43,7 @@ import com.parvez.booker.ui.util.initials
 
 /**
  * Modern book item card featuring vertical colored spine, 44x60dp cover swatch with initials,
- * serif title, status pill badge, author, and 2-line ellipsized description.
+ * serif title, status pill badge, author, 2-line ellipsized description, and "See more..." popup trigger.
  */
 @Composable
 fun BookerBookCard(
@@ -47,12 +51,15 @@ fun BookerBookCard(
     modifier: Modifier = Modifier,
     onStatusToggle: ((Book) -> Unit)? = null
 ) {
+    var showDetailsDialog by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(SurfaceDark)
             .border(1.dp, HairlineBorder, RoundedCornerShape(14.dp))
+            .clickable { showDetailsDialog = true }
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -62,7 +69,7 @@ fun BookerBookCard(
             Box(
                 modifier = Modifier
                     .width(6.dp)
-                    .height(108.dp)
+                    .height(118.dp)
                     .background(if (book.completed) SuccessGreen else AccentGold)
             )
 
@@ -150,9 +157,26 @@ fun BookerBookCard(
                             overflow = TextOverflow.Ellipsis,
                             lineHeight = 16.sp
                         )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "See details...",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AccentGold,
+                            modifier = Modifier.clickable { showDetailsDialog = true }
+                        )
                     }
                 }
             }
         }
+    }
+
+    if (showDetailsDialog) {
+        BookDetailsDialog(
+            book = book,
+            onDismiss = { showDetailsDialog = false },
+            onStatusToggle = onStatusToggle
+        )
     }
 }
