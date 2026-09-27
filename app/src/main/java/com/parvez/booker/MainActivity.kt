@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.parvez.booker.ui.screen.BookScreen
+import com.parvez.booker.ui.screen.BookerLibraryScreen
 import com.parvez.booker.ui.theme.BookerTheme
 
 /**
@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             BookerTheme {
-                BookScreen()
+                BookerLibraryScreen()
             }
         }
     }
