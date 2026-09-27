@@ -22,8 +22,16 @@ import java.net.UnknownHostException
  */
 class BookViewModel(
     application: Application,
-    private val repository: BookRepository = BookRepository(application)
+    private val repository: BookRepository
 ) : AndroidViewModel(application) {
+
+    /**
+     * Primary single-argument constructor required for ViewModelProvider.AndroidViewModelFactory.
+     */
+    constructor(application: Application) : this(
+        application = application,
+        repository = BookRepository(application)
+    )
 
     private val _uiState = MutableStateFlow(BookUiState())
     val uiState: StateFlow<BookUiState> = _uiState.asStateFlow()
