@@ -7,6 +7,7 @@ import com.parvez.booker.data.model.Book
 import com.parvez.booker.data.model.BookRequest
 import com.parvez.booker.data.network.BookSseEvent
 import com.parvez.booker.data.repository.BookRepository
+import com.parvez.booker.ui.notification.SystemNotificationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +19,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
 /**
- * AndroidViewModel managing UI state, live SSE notifications, and business logic for Booker.
+ * AndroidViewModel managing UI state, live SSE notifications, system notifications, and business logic for Booker.
  */
 class BookViewModel(
     application: Application,
@@ -33,6 +34,8 @@ class BookViewModel(
         repository = BookRepository(application)
     )
 
+    private val systemNotificationHelper = SystemNotificationHelper(application)
+
     private val _uiState = MutableStateFlow(BookUiState())
     val uiState: StateFlow<BookUiState> = _uiState.asStateFlow()
 
@@ -46,6 +49,8 @@ class BookViewModel(
                 when (event) {
                     is BookSseEvent.BookCreated -> {
                         val newBook = event.book
+                        systemNotificationHelper.showNewBookNotification(newBook)
+
                         _uiState.update { current ->
                             val alreadyExists = current.books.any {
                                 (it.id != null && it.id == newBook.id) || (!newBook.isbn.isNullOrBlank() && it.isbn == newBook.isbn)
