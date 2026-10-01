@@ -41,20 +41,27 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.parvez.booker.data.model.BookRequest
+import com.parvez.booker.ui.theme.AccentGold
+import com.parvez.booker.ui.theme.BgDark
+import com.parvez.booker.ui.theme.HairlineBorder
+import com.parvez.booker.ui.theme.SurfaceAlt
+import com.parvez.booker.ui.theme.TextMuted
+import com.parvez.booker.ui.theme.TextPrimary
 
 /**
- * Modal dialog containing form fields to submit a new book payload.
+ * Modal dialog containing form fields to submit a new book payload
+ * or request a public library book (only title and authorName required).
  */
 @Composable
 fun AddBookDialog(
     initialQuery: String? = null,
+    isPublicRequest: Boolean = false,
     onDismiss: () -> Unit,
     onSubmitBook: (BookRequest, (String) -> Unit) -> Unit
 ) {
-    val isDigitsOnly = initialQuery?.trim()?.all { it.isDigit() } == true && (initialQuery.trim().length in 10..13)
-
-    var isbn by remember { mutableStateOf(if (isDigitsOnly) initialQuery?.trim().orEmpty() else "") }
-    var title by remember { mutableStateOf(if (!isDigitsOnly) initialQuery?.trim().orEmpty() else "") }
+    var title by remember {
+        mutableStateOf(initialQuery?.trim().orEmpty())
+    }
     var author by remember { mutableStateOf("") }
     var publishedDate by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -75,9 +82,9 @@ fun AddBookDialog(
                     width = 1.dp,
                     brush = Brush.horizontalGradient(
                         colors = listOf(
-                            Color(0xFFFFD36E),
-                            Color(0xFF8B5E1A),
-                            Color(0xFFFFD36E)
+                            AccentGold,
+                            HairlineBorder,
+                            AccentGold
                         )
                     ),
                     shape = RoundedCornerShape(20.dp)
@@ -99,17 +106,17 @@ fun AddBookDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Add New Book",
+                        text = if (isPublicRequest) "Request Public Book" else "Add New Book",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Serif,
-                        color = Color(0xFFFFD36E)
+                        color = AccentGold
                     )
 
                     Text(
                         text = "✕",
                         fontSize = 18.sp,
-                        color = Color(0xFFFFD36E),
+                        color = AccentGold,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .clickable { onDismiss() }
@@ -117,37 +124,32 @@ fun AddBookDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                OutlinedTextField(
-                    value = isbn,
-                    onValueChange = { isbn = it },
-                    label = { Text("ISBN (10 or 13 digits)", color = Color(0xFFD9C7A3)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFFFD36E),
-                        unfocusedBorderColor = Color(0xFF8B5E1A),
-                        focusedTextColor = Color(0xFFFFD36E),
-                        unfocusedTextColor = Color(0xFFFFD36E),
-                        cursorColor = Color(0xFFFFD36E)
+                if (isPublicRequest) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Submit a request for the global public library. Only Title and Author Name are required.",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                        lineHeight = 16.sp
                     )
-                )
+                }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Book Title", color = Color(0xFFD9C7A3)) },
+                    label = { Text("Book Title", color = TextMuted) },
+                    placeholder = { Text("e.g. Clean Code", color = TextMuted.copy(alpha = 0.5f)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFFFD36E),
-                        unfocusedBorderColor = Color(0xFF8B5E1A),
-                        focusedTextColor = Color(0xFFFFD36E),
-                        unfocusedTextColor = Color(0xFFFFD36E),
-                        cursorColor = Color(0xFFFFD36E)
+                        focusedBorderColor = AccentGold,
+                        unfocusedBorderColor = HairlineBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        cursorColor = AccentGold
                     )
                 )
 
@@ -156,77 +158,84 @@ fun AddBookDialog(
                 OutlinedTextField(
                     value = author,
                     onValueChange = { author = it },
-                    label = { Text("Author", color = Color(0xFFD9C7A3)) },
+                    label = { Text("Author Name", color = TextMuted) },
+                    placeholder = { Text("e.g. Robert C. Martin", color = TextMuted.copy(alpha = 0.5f)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFFFD36E),
-                        unfocusedBorderColor = Color(0xFF8B5E1A),
-                        focusedTextColor = Color(0xFFFFD36E),
-                        unfocusedTextColor = Color(0xFFFFD36E),
-                        cursorColor = Color(0xFFFFD36E)
+                        focusedBorderColor = AccentGold,
+                        unfocusedBorderColor = HairlineBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        cursorColor = AccentGold
                     )
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                // Only show additional private metadata fields when NOT in Public Request Mode
+                if (!isPublicRequest) {
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                OutlinedTextField(
-                    value = publishedDate,
-                    onValueChange = { publishedDate = it },
-                    label = { Text("Published Date (e.g. 1925)", color = Color(0xFFD9C7A3)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFFFD36E),
-                        unfocusedBorderColor = Color(0xFF8B5E1A),
-                        focusedTextColor = Color(0xFFFFD36E),
-                        unfocusedTextColor = Color(0xFFFFD36E),
-                        cursorColor = Color(0xFFFFD36E)
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Description", color = Color(0xFFD9C7A3)) },
-                    minLines = 3,
-                    maxLines = 5,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFFFD36E),
-                        unfocusedBorderColor = Color(0xFF8B5E1A),
-                        focusedTextColor = Color(0xFFFFD36E),
-                        unfocusedTextColor = Color(0xFFFFD36E),
-                        cursorColor = Color(0xFFFFD36E)
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Completed Reading?",
-                        color = Color(0xFFFFD36E),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Switch(
-                        checked = completed,
-                        onCheckedChange = { completed = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color(0xFF1A1028),
-                            checkedTrackColor = Color(0xFFFFD36E),
-                            uncheckedThumbColor = Color(0xFF8B5E1A),
-                            uncheckedTrackColor = Color(0xFF20162F)
+                    OutlinedTextField(
+                        value = publishedDate,
+                        onValueChange = { publishedDate = it },
+                        label = { Text("Published Date (e.g. 1925 or 2018)", color = TextMuted) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AccentGold,
+                            unfocusedBorderColor = HairlineBorder,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            cursorColor = AccentGold
                         )
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = { Text("Description", color = TextMuted) },
+                        minLines = 3,
+                        maxLines = 5,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AccentGold,
+                            unfocusedBorderColor = HairlineBorder,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            cursorColor = AccentGold
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Completed Reading?",
+                            color = AccentGold,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Switch(
+                            checked = completed,
+                            onCheckedChange = { completed = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = BgDark,
+                                checkedTrackColor = AccentGold,
+                                uncheckedThumbColor = HairlineBorder,
+                                uncheckedTrackColor = SurfaceAlt
+                            )
+                        )
+                    }
                 }
 
                 if (errorMessage != null) {
@@ -241,12 +250,18 @@ fun AddBookDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                val isFormValid = if (isPublicRequest) {
+                    title.isNotBlank() && author.isNotBlank() && !isSubmitting
+                } else {
+                    title.isNotBlank() && author.isNotBlank() && publishedDate.isNotBlank() && !isSubmitting
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = Color(0xFFD9C7A3))
+                        Text("Cancel", color = TextMuted)
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -256,7 +271,6 @@ fun AddBookDialog(
                             isSubmitting = true
                             errorMessage = null
                             val request = BookRequest(
-                                isbn = isbn.trim(),
                                 title = title.trim(),
                                 author = author.trim(),
                                 publishedDate = publishedDate.trim(),
@@ -268,22 +282,26 @@ fun AddBookDialog(
                                 errorMessage = error
                             }
                         },
-                        enabled = isbn.isNotBlank() && title.isNotBlank() && author.isNotBlank() && publishedDate.isNotBlank() && !isSubmitting,
+                        enabled = isFormValid,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFD36E),
-                            contentColor = Color(0xFF1A1028),
-                            disabledContainerColor = Color(0xFF8B5E1A).copy(alpha = 0.5f)
+                            containerColor = AccentGold,
+                            contentColor = BgDark,
+                            disabledContainerColor = SurfaceAlt,
+                            disabledContentColor = TextMuted
                         ),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isSubmitting) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = Color(0xFF1A1028),
+                                color = BgDark,
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Save Book", fontWeight = FontWeight.Bold)
+                            Text(
+                                text = if (isPublicRequest) "Submit Public Request" else "Save Book",
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }

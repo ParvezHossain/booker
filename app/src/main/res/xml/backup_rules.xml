@@ -6,8 +6,8 @@
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Exclude sensitive session tokens, reading store, cursors, and private PDF files from auto-backup -->
+    <exclude domain="sharedpref" path="booker_local_reading_store.xml" />
+    <exclude domain="sharedpref" path="booker_sse_cursors.xml" />
+    <exclude domain="file" path="pdf_cache" />
 </full-backup-content>

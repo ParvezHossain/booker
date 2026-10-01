@@ -52,7 +52,8 @@ class SystemNotificationHelper(private val context: Context) {
         )
 
         val title = "📚 New Book Added: ${book.title ?: "Untitled"}"
-        val content = "By ${book.author ?: "Unknown Author"} • Published: ${book.publishedDate ?: "N/A"}"
+        val content =
+            "By ${book.author ?: "Unknown Author"} • Published: ${book.publishedDate ?: "N/A"}"
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)

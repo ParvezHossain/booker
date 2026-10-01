@@ -68,9 +68,9 @@ fun BookerSearchBarAndChips(
             onValueChange = onSearchQueryChange,
             placeholder = {
                 val hint = when (searchType) {
-                    SearchType.LOCAL -> "Search title, author, ISBN…"
+                    SearchType.LOCAL -> "Search title, author, book ID…"
                     SearchType.TITLE_AUTHOR -> "API: e.g. Joshua Bloch or Effective Java"
-                    SearchType.ISBN -> "API: e.g. 9780134685991"
+                    SearchType.BOOK_ID -> "API: e.g. Book ID 1"
                 }
                 Text(hint, color = TextMuted, fontSize = 13.sp)
             },
@@ -159,9 +159,9 @@ fun BookerSearchBarAndChips(
             )
 
             BookerChip(
-                label = "By ISBN (API)",
-                isSelected = searchType == SearchType.ISBN,
-                onClick = { onSearchTypeChange(SearchType.ISBN) }
+                label = "By Book ID (API)",
+                isSelected = searchType == SearchType.BOOK_ID,
+                onClick = { onSearchTypeChange(SearchType.BOOK_ID) }
             )
         }
     }

@@ -128,7 +128,7 @@ fun BookScreen(
                     onSearchTypeChange = { viewModel.updateSearchType(it) },
                     onApiSearchSubmit = { viewModel.performApiSearch() },
                     onFilterSelect = { viewModel.updateFilter(it) },
-                    onStatusToggle = { viewModel.toggleBookCompletion(it) },
+                    onStatusToggle = {},
                     onDismissNotification = { viewModel.dismissNotification() },
                     onRefresh = { viewModel.refreshBooks() },
                     onOpenAddBook = { viewModel.setAddBookDialogVisible(true) },
@@ -160,10 +160,17 @@ fun BookScreen(
 
             if (uiState.showLoginDialog) {
                 LoginDialog(
+                    authMode = uiState.authMode,
                     isLoggingIn = uiState.isLoggingIn,
-                    errorMessage = uiState.loginErrorMessage,
-                    onLoginSubmit = { username, password ->
-                        viewModel.login(username, password)
+                    isSigningUp = uiState.isSigningUp,
+                    loginErrorMessage = uiState.loginErrorMessage,
+                    signupErrorMessage = uiState.signupErrorMessage,
+                    onTabSelected = { viewModel.setAuthMode(it) },
+                    onLoginSubmit = { email, password ->
+                        viewModel.login(email, password)
+                    },
+                    onSignupSubmit = { workspaceName, email, password ->
+                        viewModel.signup(workspaceName, email, password)
                     }
                 )
             }

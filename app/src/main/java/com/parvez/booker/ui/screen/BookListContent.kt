@@ -213,9 +213,9 @@ fun BookListContent(
                 onClick = { onSearchTypeChange(SearchType.TITLE_AUTHOR) }
             )
             FilterBadge(
-                label = "ISBN API",
-                isSelected = uiState.searchType == SearchType.ISBN,
-                onClick = { onSearchTypeChange(SearchType.ISBN) }
+                label = "Book ID API",
+                isSelected = uiState.searchType == SearchType.BOOK_ID,
+                onClick = { onSearchTypeChange(SearchType.BOOK_ID) }
             )
         }
 
@@ -227,9 +227,9 @@ fun BookListContent(
             onValueChange = onSearchQueryChange,
             placeholder = {
                 val hint = when (uiState.searchType) {
-                    SearchType.LOCAL -> "Instant filter title, author, ISBN..."
+                    SearchType.LOCAL -> "Instant filter title, author, ID..."
                     SearchType.TITLE_AUTHOR -> "e.g. Joshua Bloch or Effective Java"
-                    SearchType.ISBN -> "e.g. 9780134685991"
+                    SearchType.BOOK_ID -> "e.g. 1"
                 }
                 Text(hint, color = Color(0xFF9E927A), fontSize = 13.sp)
             },

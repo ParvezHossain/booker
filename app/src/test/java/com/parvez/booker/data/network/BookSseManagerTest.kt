@@ -19,11 +19,11 @@ class BookSseManagerTest {
         val handledEventIds = ConcurrentHashMap.newKeySet<String>()
 
         val eventData1 = """
-            {"eventId":"17","type":"book.created","schemaVersion":1,"occurredAt":"2026-09-26T12:00:00.000Z","book":{"id":123,"isbn":"9780134685991","title":"Effective Java","author":"Joshua Bloch","publishedDate":"2018-01-11","completed":false}}
+            {"eventId":"17","type":"book.created","schemaVersion":2,"occurredAt":"2026-09-26T12:00:00.000Z","book":{"id":123,"title":"Effective Java","author":"Joshua Bloch","publishedDate":"2018","completed":false}}
         """.trimIndent()
 
         val eventData2 = """
-            {"eventId":"17","type":"book.created","schemaVersion":1,"occurredAt":"2026-09-26T12:00:00.000Z","book":{"id":123,"isbn":"9780134685991","title":"Effective Java","author":"Joshua Bloch","publishedDate":"2018-01-11","completed":false}}
+            {"eventId":"17","type":"book.created","schemaVersion":2,"occurredAt":"2026-09-26T12:00:00.000Z","book":{"id":123,"title":"Effective Java","author":"Joshua Bloch","publishedDate":"2018","completed":false}}
         """.trimIndent()
 
         val parsed1 = gson.fromJson(eventData1, BookEvent::class.java)

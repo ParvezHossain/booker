@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.parvez.booker.data.model.Book
+import com.parvez.booker.data.model.Document
+import com.parvez.booker.data.model.ReadingSummary
 import com.parvez.booker.ui.theme.AccentGold
 import com.parvez.booker.ui.theme.HairlineBorder
 import com.parvez.booker.ui.theme.StatusWarning
@@ -49,7 +51,10 @@ import com.parvez.booker.ui.util.initials
 fun BookerBookCard(
     book: Book,
     modifier: Modifier = Modifier,
-    onStatusToggle: ((Book) -> Unit)? = null
+    summary: ReadingSummary? = null,
+    onStatusToggle: ((Book) -> Unit)? = null,
+    onUploadPdf: ((Book) -> Unit)? = null,
+    onOpenPdf: ((Book, Document) -> Unit)? = null
 ) {
     var showDetailsDialog by remember { mutableStateOf(false) }
 
@@ -69,7 +74,7 @@ fun BookerBookCard(
             Box(
                 modifier = Modifier
                     .width(6.dp)
-                    .height(118.dp)
+                    .height(140.dp)
                     .background(if (book.completed) SuccessGreen else AccentGold)
             )
 
@@ -120,13 +125,17 @@ fun BookerBookCard(
 
                         Spacer(modifier = Modifier.width(6.dp))
 
-                        // Status Badge Pill
+                        // Status Badge Pill (Manual Catalogue Metadata)
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(SurfaceAlt)
                                 .then(
-                                    if (onStatusToggle != null) Modifier.clickable { onStatusToggle(book) } else Modifier
+                                    if (onStatusToggle != null) Modifier.clickable {
+                                        onStatusToggle(
+                                            book
+                                        )
+                                    } else Modifier
                                 )
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
@@ -147,25 +156,75 @@ fun BookerBookCard(
                         color = TextMuted
                     )
 
-                    if (!book.description.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = book.description,
-                            fontSize = 12.sp,
-                            color = TextMuted,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 16.sp
-                        )
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "See details...",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AccentGold,
-                            modifier = Modifier.clickable { showDetailsDialog = true }
-                        )
+                    // PDF Document & Personal Reading Progress Section
+                    val doc = summary?.document
+                    val progress = summary?.progress
+
+                    if (doc == null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "No PDF uploaded",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            if (onUploadPdf != null) {
+                                Text(
+                                    text = "Upload PDF",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentGold,
+                                    modifier = Modifier.clickable { onUploadPdf(book) }
+                                )
+                            }
+                        }
+                    } else {
+                        Column {
+                            val resumePage = progress?.resumePage ?: 1
+                            val totalPages = doc.pageCount
+                            val percentage = progress?.progressPercentage ?: 0.0
+
+                            val progressText = if (progress == null || progress.currentPage == 0) {
+                                "Not started (page 1 of $totalPages)"
+                            } else {
+                                "Page $resumePage of $totalPages • ${"%.1f".format(percentage)}%"
+                            }
+
+                            Text(
+                                text = progressText,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = SuccessGreen
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (onOpenPdf != null) {
+                                    Text(
+                                        text = if (resumePage > 1) "Continue reading" else "Open PDF",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AccentGold,
+                                        modifier = Modifier.clickable { onOpenPdf(book, doc) }
+                                    )
+                                }
+
+                                if (onUploadPdf != null) {
+                                    Text(
+                                        text = "Replace PDF",
+                                        fontSize = 11.sp,
+                                        color = TextMuted,
+                                        modifier = Modifier.clickable { onUploadPdf(book) }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

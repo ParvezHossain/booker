@@ -121,7 +121,7 @@ fun BookCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "ISBN: ${book.isbn ?: "N/A"}",
+                text = "Book ID: #${book.id ?: "N/A"}",
                 color = Color(0xFFBFAE87),
                 fontSize = 13.sp
             )

@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,6 +48,8 @@ import com.parvez.booker.ui.theme.TextPrimary
 fun BookerTopBar(
     totalCount: Int,
     onRefresh: () -> Unit,
+    onChangePassword: (() -> Unit)? = null,
+    onResetPassword: (() -> Unit)? = null,
     onLogout: () -> Unit,
     onOpenAddBook: () -> Unit,
     modifier: Modifier = Modifier
@@ -115,6 +119,48 @@ fun BookerTopBar(
                     tint = TextMuted,
                     modifier = Modifier.size(16.dp)
                 )
+            }
+
+            if (onChangePassword != null) {
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Circular Change Password Button
+                IconButton(
+                    onClick = onChangePassword,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceAlt)
+                        .border(1.dp, HairlineBorder, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Change Password",
+                        tint = TextMuted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            if (onResetPassword != null) {
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Circular Reset Password Button
+                IconButton(
+                    onClick = onResetPassword,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceAlt)
+                        .border(1.dp, HairlineBorder, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Key,
+                        contentDescription = "Reset Password",
+                        tint = TextMuted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(6.dp))

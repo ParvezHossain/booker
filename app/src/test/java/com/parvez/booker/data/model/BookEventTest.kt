@@ -16,14 +16,13 @@ class BookEventTest {
             {
               "eventId": "17",
               "type": "book.created",
-              "schemaVersion": 1,
+              "schemaVersion": 2,
               "occurredAt": "2026-09-26T12:00:00.000Z",
               "book": {
                 "id": 123,
-                "isbn": "9780134685991",
                 "title": "Effective Java",
                 "author": "Joshua Bloch",
-                "publishedDate": "2018-01-11",
+                "publishedDate": "2018",
                 "description": null,
                 "completed": false
               }
@@ -35,16 +34,15 @@ class BookEventTest {
         assertNotNull(event)
         assertEquals("17", event.eventId)
         assertEquals("book.created", event.type)
-        assertEquals(1, event.schemaVersion)
+        assertEquals(2, event.schemaVersion)
         assertEquals("2026-09-26T12:00:00.000Z", event.occurredAt)
 
         val book = event.book
         assertNotNull(book)
         assertEquals(123L, book?.id)
-        assertEquals("9780134685991", book?.isbn)
         assertEquals("Effective Java", book?.title)
         assertEquals("Joshua Bloch", book?.author)
-        assertEquals("2018-01-11", book?.publishedDate)
+        assertEquals("2018", book?.publishedDate)
         assertFalse(book?.completed ?: true)
     }
 }

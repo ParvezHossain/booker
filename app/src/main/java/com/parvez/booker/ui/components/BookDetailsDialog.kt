@@ -160,7 +160,7 @@ fun BookDetailsDialog(
 
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "ISBN: ${book.isbn ?: "N/A"}",
+                            text = "Book ID: #${book.id ?: "N/A"}",
                             fontSize = 12.sp,
                             color = TextMuted
                         )
