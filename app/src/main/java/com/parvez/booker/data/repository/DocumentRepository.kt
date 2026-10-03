@@ -122,13 +122,14 @@ class DocumentRepository(
     }
 
     /**
-     * Executes streamed multipart upload via POST /api/books/{bookId}/document with Idempotency-Key.
+     * Executes streamed multipart upload via POST /api/books/{bookId}/document or /api/public-books/{bookId}/document.
      */
     suspend fun uploadDocument(
         bookId: Long,
         idempotencyKey: String,
         snapshotFile: File,
         fileName: String,
+        isPublic: Boolean = false,
         onProgress: (bytesSent: Long, totalBytes: Long) -> Unit
     ): Document {
         val cleanName = sanitizeFileName(fileName)
@@ -139,14 +140,20 @@ class DocumentRepository(
             onProgress = onProgress
         )
 
-        val filePart = MultipartBody.Part.createFormData("file", cleanName, streamBody)
+        val uploadResponseDoc = if (isPublic) {
+            RetrofitClient.bookApi.uploadPublicDocument(
+                bookId = bookId,
+                idempotencyKey = idempotencyKey,
+                fileName = cleanName,
+                body = streamBody
+            )
+        } else {
+            val filePart = MultipartBody.Part.createFormData("file", cleanName, streamBody)
+            RetrofitClient.bookApi.uploadDocument(bookId, idempotencyKey, filePart)
+        }
 
-        // Upload file with idempotency key
-        val uploadResponseDoc = RetrofitClient.bookApi.uploadDocument(bookId, idempotencyKey, filePart)
-
-        // Always re-fetch active document to verify active state (replayed key might return historical doc)
         return try {
-            val activeDoc = RetrofitClient.bookApi.getDocument(bookId)
+            val activeDoc = getActiveDocument(bookId, isPublic)
             if (activeDoc.documentId == uploadResponseDoc.documentId) {
                 activeDoc
             } else {
@@ -158,10 +165,14 @@ class DocumentRepository(
     }
 
     /**
-     * Fetches currently active document metadata for a book via GET /api/books/{bookId}/document.
+     * Fetches currently active document metadata for a book via GET /api/books/{bookId}/document or /api/public-books/{bookId}/document.
      */
-    suspend fun getActiveDocument(bookId: Long): Document {
-        return RetrofitClient.bookApi.getDocument(bookId)
+    suspend fun getActiveDocument(bookId: Long, isPublic: Boolean = false): Document {
+        return if (isPublic) {
+            RetrofitClient.bookApi.getPublicDocument(bookId)
+        } else {
+            RetrofitClient.bookApi.getDocument(bookId)
+        }
     }
 
     /**

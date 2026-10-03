@@ -1,7 +1,9 @@
 package com.parvez.booker.data.network
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
+import com.google.gson.Gson
 import com.parvez.booker.data.model.LoginRequest
 import com.parvez.booker.data.model.RefreshRequest
 import com.parvez.booker.data.model.SignupRequest
@@ -31,23 +33,81 @@ data class SessionState(
 
 /**
  * Thread-safe, lifecycle-aware session coordinator managing JWT authentication,
- * atomic token rotation, single-flight refresh, and session isolation.
+ * persistent session restoration across app restarts, atomic token rotation, and single-flight refresh.
  */
 class SessionCoordinator(
-    context: Context? = null,
-    private val cursorStorage: CursorStorage? = CursorStorage(context)
+    private val context: Context? = null,
+    private val cursorStorage: CursorStorage? = CursorStorage(context),
+    private val gson: Gson = Gson()
 ) {
 
+    private val prefs: SharedPreferences? = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val refreshMutex = Mutex()
 
     private val _sessionState = MutableStateFlow(SessionState())
     val sessionState: StateFlow<SessionState> = _sessionState.asStateFlow()
+
+    init {
+        restorePersistedSession()
+    }
 
     /**
      * Currently active session generation counter.
      */
     val currentGeneration: Long
         get() = _sessionState.value.sessionGeneration
+
+    /**
+     * Restores saved session tokens and email from SharedPreferences on app startup.
+     */
+    private fun restorePersistedSession() {
+        if (prefs == null) return
+        val refreshToken = prefs.getString(KEY_REFRESH_TOKEN, null)
+        val accessToken = prefs.getString(KEY_ACCESS_TOKEN, null)
+        val email = prefs.getString(KEY_EMAIL, null)
+        val workspaceJson = prefs.getString(KEY_WORKSPACE_JSON, null)
+
+        if (!refreshToken.isNullOrBlank() && !email.isNullOrBlank()) {
+            val workspace = if (!workspaceJson.isNullOrBlank()) {
+                try {
+                    gson.fromJson(workspaceJson, Workspace::class.java)
+                } catch (e: Exception) {
+                    null
+                }
+            } else null
+
+            RetrofitClient.accessToken = accessToken ?: ""
+
+            val restoredState = SessionState(
+                isAuthenticated = true,
+                accessToken = accessToken,
+                refreshToken = refreshToken,
+                email = email,
+                workspace = workspace,
+                sessionGeneration = 1L
+            )
+
+            _sessionState.value = restoredState
+            Log.d("SessionCoordinator", "Restored persistent session for $email")
+        }
+    }
+
+    private fun persistSessionState(state: SessionState) {
+        if (prefs == null) return
+        val workspaceJson = if (state.workspace != null) gson.toJson(state.workspace) else null
+        prefs.edit()
+            .putBoolean(KEY_IS_AUTH, state.isAuthenticated)
+            .putString(KEY_ACCESS_TOKEN, state.accessToken)
+            .putString(KEY_REFRESH_TOKEN, state.refreshToken)
+            .putString(KEY_EMAIL, state.email)
+            .putString(KEY_WORKSPACE_JSON, workspaceJson)
+            .apply()
+    }
+
+    private fun clearPersistedSession() {
+        if (prefs == null) return
+        prefs.edit().clear().apply()
+    }
 
     /**
      * Registers a new workspace and owner account via POST /api/auth/signup.
@@ -75,16 +135,17 @@ class SessionCoordinator(
             null
         }
 
-        _sessionState.update {
-            SessionState(
-                isAuthenticated = true,
-                accessToken = tokens.accessToken,
-                refreshToken = tokens.refreshToken,
-                email = cleanEmail,
-                workspace = workspace,
-                sessionGeneration = newGeneration
-            )
-        }
+        val newState = SessionState(
+            isAuthenticated = true,
+            accessToken = tokens.accessToken,
+            refreshToken = tokens.refreshToken,
+            email = cleanEmail,
+            workspace = workspace,
+            sessionGeneration = newGeneration
+        )
+
+        _sessionState.value = newState
+        persistSessionState(newState)
 
         Log.d("SessionCoordinator", "Login successful for $cleanEmail (Gen: $newGeneration, Workspace: ${workspace?.name ?: "None/SuperAdmin"})")
         return workspace ?: Workspace(
@@ -121,12 +182,13 @@ class SessionCoordinator(
 
             updateTokensInternal(newTokens.accessToken)
 
-            _sessionState.update { state ->
-                state.copy(
-                    accessToken = newTokens.accessToken,
-                    refreshToken = newTokens.refreshToken
-                )
-            }
+            val updatedState = current.copy(
+                accessToken = newTokens.accessToken,
+                refreshToken = newTokens.refreshToken
+            )
+
+            _sessionState.value = updatedState
+            persistSessionState(updatedState)
 
             Log.d("SessionCoordinator", "Token rotation successful")
             newTokens.accessToken
@@ -150,7 +212,11 @@ class SessionCoordinator(
      * Updates workspace metadata in session state.
      */
     fun updateWorkspace(workspace: Workspace) {
-        _sessionState.update { it.copy(workspace = workspace) }
+        _sessionState.update { state ->
+            val updated = state.copy(workspace = workspace)
+            persistSessionState(updated)
+            updated
+        }
     }
 
     /**
@@ -193,16 +259,24 @@ class SessionCoordinator(
         RetrofitClient.username = ""
         RetrofitClient.password = ""
 
-        _sessionState.update {
-            SessionState(
-                isAuthenticated = false,
-                accessToken = null,
-                refreshToken = null,
-                email = null,
-                workspace = null,
-                sessionGeneration = generation
-            )
-        }
+        _sessionState.value = SessionState(
+            isAuthenticated = false,
+            accessToken = null,
+            refreshToken = null,
+            email = null,
+            workspace = null,
+            sessionGeneration = generation
+        )
+        clearPersistedSession()
         Log.d("SessionCoordinator", "Session state cleared (Gen: $generation)")
+    }
+
+    companion object {
+        private const val PREFS_NAME = "booker_session_store"
+        private const val KEY_IS_AUTH = "key_is_authenticated"
+        private const val KEY_ACCESS_TOKEN = "key_access_token"
+        private const val KEY_REFRESH_TOKEN = "key_refresh_token"
+        private const val KEY_EMAIL = "key_email"
+        private const val KEY_WORKSPACE_JSON = "key_workspace_json"
     }
 }

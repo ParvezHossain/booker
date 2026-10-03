@@ -97,7 +97,7 @@ class PdfCacheRepository(
     // --- Streamed Resumable Download Execution ---
 
     /**
-     * Stream-downloads a PDF document from GET /api/books/{bookId}/document/content with HTTP Range support.
+     * Stream-downloads a PDF document from GET /api/books/{bookId}/document/content or /api/public-books/{bookId}/document/content with HTTP Range support.
      */
     suspend fun downloadPdfDocument(
         envUrl: String,
@@ -105,6 +105,7 @@ class PdfCacheRepository(
         workspaceId: String,
         bookId: Long,
         document: Document,
+        isPublic: Boolean = false,
         onProgress: (bytesDownloaded: Long, totalBytes: Long, percent: Float) -> Unit
     ): File {
         val completeFile = getCompletePdfFile(envUrl, email, workspaceId, bookId, document.documentId)
@@ -130,12 +131,21 @@ class PdfCacheRepository(
             null
         }
 
-        val response: Response<ResponseBody> = RetrofitClient.bookApi.getDocumentContent(
-            bookId = bookId,
-            documentId = document.documentId,
-            download = null,
-            range = rangeHeader
-        )
+        val response: Response<ResponseBody> = if (isPublic) {
+            RetrofitClient.bookApi.getPublicDocumentContent(
+                bookId = bookId,
+                documentId = document.documentId,
+                download = null,
+                range = rangeHeader
+            )
+        } else {
+            RetrofitClient.bookApi.getDocumentContent(
+                bookId = bookId,
+                documentId = document.documentId,
+                download = null,
+                range = rangeHeader
+            )
+        }
 
         val statusCode = response.code()
 
@@ -153,7 +163,7 @@ class PdfCacheRepository(
             } else {
                 partialFile.delete()
                 // Retry without range
-                return downloadPdfDocument(envUrl, email, workspaceId, bookId, document, onProgress)
+                return downloadPdfDocument(envUrl, email, workspaceId, bookId, document, isPublic, onProgress)
             }
         }
 

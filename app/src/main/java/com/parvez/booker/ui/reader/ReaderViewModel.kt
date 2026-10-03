@@ -35,6 +35,7 @@ data class ReaderUiState(
     val isRestored: Boolean = false,
     val isOffline: Boolean = false,
     val isUnsynced: Boolean = false,
+    val isPublic: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -60,7 +61,7 @@ class ReaderViewModel(
     /**
      * Initializes PDF renderer, performs saved-page restoration, and renders initial restored page.
      */
-    fun loadDocument(bookId: Long, documentId: String, initialTitle: String? = null) {
+    fun loadDocument(bookId: Long, documentId: String, initialTitle: String? = null, isPublic: Boolean = false) {
         val sessionState = repository.sessionCoordinator.sessionState.value
         val email = sessionState.email ?: "anonymous"
         val workspaceId = sessionState.workspace?.id ?: "default_workspace"
@@ -72,13 +73,36 @@ class ReaderViewModel(
                 bookId = bookId,
                 documentId = documentId,
                 bookTitle = initialTitle ?: "Reading PDF",
+                isPublic = isPublic,
                 errorMessage = null
             )
         }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Query local reading state from LocalReadingStore (Prompt 05)
+                // Fetch fresh server reading progress for active session first
+                val serverProgress: ReadingProgress? = try {
+                    if (isPublic) {
+                        RetrofitClient.bookApi.getPublicReadingProgress(bookId)
+                    } else {
+                        RetrofitClient.bookApi.getReadingProgress(bookId)
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+
+                if (serverProgress != null) {
+                    repository.localReadingStore.setAcknowledgedProgress(
+                        envUrl = envUrl,
+                        email = email,
+                        workspaceId = workspaceId,
+                        bookId = bookId,
+                        documentId = documentId,
+                        acknowledged = serverProgress
+                    )
+                }
+
+                // Query local reading state from LocalReadingStore
                 val localState: LocalProgressState = repository.localReadingStore.getProgressState(
                     envUrl = envUrl,
                     email = email,
@@ -98,7 +122,7 @@ class ReaderViewModel(
                     1
                 }
 
-                // Check or download verified complete cached PDF file (Prompt 07)
+                // Check or download verified complete cached PDF file
                 var cachedPdfFile = repository.pdfCacheRepository.getCompletePdfFile(
                     envUrl = envUrl,
                     email = email,
@@ -110,13 +134,14 @@ class ReaderViewModel(
                 var isOffline = false
                 if (!cachedPdfFile.exists() || cachedPdfFile.length() == 0L) {
                     try {
-                        val activeDoc: Document = repository.documentRepository.getActiveDocument(bookId)
+                        val activeDoc: Document = repository.documentRepository.getActiveDocument(bookId, isPublic)
                         cachedPdfFile = repository.pdfCacheRepository.downloadPdfDocument(
                             envUrl = envUrl,
                             email = email,
                             workspaceId = workspaceId,
                             bookId = bookId,
                             document = activeDoc,
+                            isPublic = isPublic,
                             onProgress = { _, _, _ -> }
                         )
                     } catch (e: Exception) {
@@ -202,7 +227,8 @@ class ReaderViewModel(
                     workspaceId = workspaceId,
                     bookId = current.bookId,
                     documentId = current.documentId,
-                    newPage = clampedPage
+                    newPage = clampedPage,
+                    isPublic = current.isPublic
                 )
 
                 _uiState.update {
@@ -271,16 +297,37 @@ class ReaderViewModel(
     }
 
     /**
-     * Closes renderer handles and unmarks active open document ID.
+     * Closes renderer handles, flushes pending progress outbox, and unmarks active open document ID.
      */
-    fun closeReader() {
-        val docId = _uiState.value.documentId
-        if (docId.isNotBlank()) {
-            repository.pdfCacheRepository.markDocumentClosed(docId)
+    fun closeReader(onClosed: (() -> Unit)? = null) {
+        val current = _uiState.value
+        val sessionState = repository.sessionCoordinator.sessionState.value
+        val email = sessionState.email ?: "anonymous"
+        val workspaceId = sessionState.workspace?.id ?: "default_workspace"
+
+        viewModelScope.launch(Dispatchers.IO) {
+            if (current.bookId > 0L && current.documentId.isNotBlank()) {
+                try {
+                    repository.progressSyncManager.flushSync(
+                        envUrl = RetrofitClient.baseUrl,
+                        email = email,
+                        workspaceId = workspaceId,
+                        bookId = current.bookId,
+                        documentId = current.documentId,
+                        isPublic = current.isPublic
+                    )
+                } catch (e: Exception) {
+                    Log.w("ReaderViewModel", "Failed to flush sync on close: ${e.message}")
+                }
+                repository.pdfCacheRepository.markDocumentClosed(current.documentId)
+            }
+            pdfAdapter?.close()
+            pdfAdapter = null
+            withContext(Dispatchers.Main) {
+                _uiState.update { ReaderUiState() }
+                onClosed?.invoke()
+            }
         }
-        pdfAdapter?.close()
-        pdfAdapter = null
-        _uiState.update { ReaderUiState() }
     }
 
     override fun onCleared() {

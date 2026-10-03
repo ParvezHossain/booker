@@ -57,7 +57,8 @@ class ProgressSyncManager(
         workspaceId: String,
         bookId: Long,
         documentId: String,
-        newPage: Int
+        newPage: Int,
+        isPublic: Boolean = false
     ) {
         // Record page change in local store immediately
         localReadingStore.recordLocalPageChange(envUrl, email, workspaceId, bookId, documentId, newPage)
@@ -65,7 +66,7 @@ class ProgressSyncManager(
         debounceJob?.cancel()
         debounceJob = scope.launch(Dispatchers.IO) {
             delay(DEBOUNCE_DELAY_MS)
-            flushSync(envUrl, email, workspaceId, bookId, documentId)
+            flushSync(envUrl, email, workspaceId, bookId, documentId, isPublic)
         }
     }
 
@@ -77,10 +78,11 @@ class ProgressSyncManager(
         email: String,
         workspaceId: String,
         bookId: Long,
-        documentId: String
+        documentId: String,
+        isPublic: Boolean = false
     ) {
         syncMutex.withLock {
-            executeOrderedSync(envUrl, email, workspaceId, bookId, documentId)
+            executeOrderedSync(envUrl, email, workspaceId, bookId, documentId, isPublic)
         }
     }
 
@@ -89,7 +91,8 @@ class ProgressSyncManager(
         email: String,
         workspaceId: String,
         bookId: Long,
-        documentId: String
+        documentId: String,
+        isPublic: Boolean = false
     ) {
         val state = localReadingStore.getProgressState(envUrl, email, workspaceId, bookId, documentId)
         val ack = state.acknowledgedProgress
@@ -111,7 +114,7 @@ class ProgressSyncManager(
                 maxUpdate, ProgressSyncType.SYNC_MAX
             )
 
-            val outcome = performPutRequest(bookId, maxUpdate)
+            val outcome = performPutRequest(bookId, maxUpdate, isPublic)
             val continueSync = handleSyncOutcome(envUrl, email, workspaceId, bookId, documentId, maxUpdate, outcome)
             if (!continueSync) return
         }
@@ -135,17 +138,22 @@ class ProgressSyncManager(
                 resumeUpdate, ProgressSyncType.SYNC_RESUME
             )
 
-            val outcome = performPutRequest(bookId, resumeUpdate)
+            val outcome = performPutRequest(bookId, resumeUpdate, isPublic)
             handleSyncOutcome(envUrl, email, workspaceId, bookId, documentId, resumeUpdate, outcome)
         }
     }
 
     private suspend fun performPutRequest(
         bookId: Long,
-        update: ProgressUpdate
+        update: ProgressUpdate,
+        isPublic: Boolean = false
     ): NetworkResult<ReadingProgress> {
         return try {
-            val response = RetrofitClient.bookApi.updateReadingProgress(bookId, update)
+            val response = if (isPublic) {
+                RetrofitClient.bookApi.updatePublicReadingProgress(bookId, update)
+            } else {
+                RetrofitClient.bookApi.updateReadingProgress(bookId, update)
+            }
             RetrofitClient.parseResponse(response)
         } catch (e: Exception) {
             RetrofitClient.parseHttpException(e)

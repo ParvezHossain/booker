@@ -183,12 +183,12 @@ interface BookApi {
         @Path("bookId") bookId: Long
     ): Response<Unit>
 
-    @Multipart
     @POST("public-books/{bookId}/document")
     suspend fun uploadPublicDocument(
         @Path("bookId") bookId: Long,
         @Header("Idempotency-Key") idempotencyKey: String,
-        @Part file: MultipartBody.Part
+        @Query("fileName") fileName: String,
+        @Body body: RequestBody
     ): Document
 
     @GET("public-books/{bookId}/document")

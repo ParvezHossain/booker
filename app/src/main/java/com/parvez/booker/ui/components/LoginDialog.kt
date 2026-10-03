@@ -412,8 +412,8 @@ fun LoginDialog(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AccentGold,
                         contentColor = BgDark,
-                        disabledContainerColor = SurfaceAlt,
-                        disabledContentColor = TextMuted
+                        disabledContainerColor = AccentGold.copy(alpha = 0.45f),
+                        disabledContentColor = BgDark.copy(alpha = 0.6f)
                     )
                 ) {
                     Row(

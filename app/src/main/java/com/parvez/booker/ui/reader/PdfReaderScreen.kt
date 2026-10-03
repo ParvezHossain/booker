@@ -51,13 +51,14 @@ fun PdfReaderScreen(
     bookId: Long,
     documentId: String,
     bookTitle: String,
+    isPublic: Boolean = false,
     viewModel: ReaderViewModel,
     onBackClicked: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(bookId, documentId) {
-        viewModel.loadDocument(bookId, documentId, bookTitle)
+    LaunchedEffect(bookId, documentId, isPublic) {
+        viewModel.loadDocument(bookId, documentId, bookTitle, isPublic)
     }
 
     DisposableEffect(Unit) {

@@ -69,7 +69,7 @@ class LocalReadingStore(
     ): String {
         val normEnv = envUrl.trim().trimEnd('/')
         val normEmail = email.trim().lowercase().ifEmpty { "anonymous" }
-        val normWorkspace = workspaceId.trim().ifEmpty { "default_workspace" }
+        val normWorkspace = workspaceId.trim().ifEmpty { "ws_${normEmail.hashCode()}" }
         val normDoc = documentId.trim()
         return "progress_${normEnv.hashCode()}_${normEmail.hashCode()}_${normWorkspace}_${bookId}_$normDoc"
     }
@@ -77,14 +77,14 @@ class LocalReadingStore(
     fun buildCatalogueKey(envUrl: String, email: String, workspaceId: String): String {
         val normEnv = envUrl.trim().trimEnd('/')
         val normEmail = email.trim().lowercase().ifEmpty { "anonymous" }
-        val normWorkspace = workspaceId.trim().ifEmpty { "default_workspace" }
+        val normWorkspace = workspaceId.trim().ifEmpty { "ws_${normEmail.hashCode()}" }
         return "catalogue_${normEnv.hashCode()}_${normEmail.hashCode()}_$normWorkspace"
     }
 
     fun buildDocumentKey(envUrl: String, email: String, workspaceId: String, bookId: Long): String {
         val normEnv = envUrl.trim().trimEnd('/')
         val normEmail = email.trim().lowercase().ifEmpty { "anonymous" }
-        val normWorkspace = workspaceId.trim().ifEmpty { "default_workspace" }
+        val normWorkspace = workspaceId.trim().ifEmpty { "ws_${normEmail.hashCode()}" }
         return "doc_${normEnv.hashCode()}_${normEmail.hashCode()}_${normWorkspace}_$bookId"
     }
 
@@ -160,14 +160,18 @@ class LocalReadingStore(
 
         val current = getProgressState(envUrl, email, workspaceId, bookId, documentId)
 
-        // Determine resume and max pages taking server values into account
-        val effectiveResume = if (current.latestLocalResumePage <= 1 && acknowledged.resumePage > 1) {
+        // When acknowledged progress arrives from server and no local in-flight swipe is pending, server values are ground truth for this workspace
+        val effectiveResume = if (current.inFlightOperation == null) {
             acknowledged.resumePage
         } else {
             current.latestLocalResumePage
         }
 
-        val effectiveMax = max(current.latestLocalMaxPage, acknowledged.pagesRead)
+        val effectiveMax = if (current.inFlightOperation == null) {
+            acknowledged.pagesRead
+        } else {
+            max(current.latestLocalMaxPage, acknowledged.pagesRead)
+        }
 
         val updated = current.copy(
             acknowledgedProgress = acknowledged,
@@ -310,6 +314,13 @@ class LocalReadingStore(
     }
 
     // --- Account Switch & Data Deletion ---
+
+    @Synchronized
+    fun clearAllInMemoryState() {
+        inMemoryState.clear()
+        inMemoryCatalogue.clear()
+        inMemoryDocuments.clear()
+    }
 
     /**
      * Explicit account data purge (e.g. user requests full local clear).

@@ -70,6 +70,7 @@ class BookViewModel(
                             isSigningUp = false
                         )
                     }
+                    refreshWorkspaceAndBooks()
                     refreshPublicBooks()
                 } else if (_uiState.value.isAuthenticated) {
                     _uiState.update {
@@ -422,6 +423,9 @@ class BookViewModel(
         }
     }
 
+    val sessionEmail: String?
+        get() = repository.sessionCoordinator.sessionState.value.email
+
     fun login(emailInput: String, passwordInput: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoggingIn = true, loginErrorMessage = null) }
@@ -438,6 +442,8 @@ class BookViewModel(
                         it.copy(
                             workspace = workspace,
                             books = books,
+                            readingSummaries = emptyMap(),
+                            publicReadingSummaries = emptyMap(),
                             isAuthenticated = true,
                             showLoginDialog = false,
                             isLoggingIn = false,
@@ -445,6 +451,7 @@ class BookViewModel(
                             selectedLibraryTab = if (isSuperAdmin) LibraryTab.PUBLIC_LIBRARY else it.selectedLibraryTab
                         )
                     }
+                    refreshSummariesForBooks(books)
                     refreshPublicBooks()
                 }
             } catch (e: Exception) {
@@ -463,6 +470,7 @@ class BookViewModel(
     fun logout() {
         viewModelScope.launch {
             repository.logout()
+            repository.localReadingStore.clearAllInMemoryState()
             _uiState.update {
                 BookUiState(
                     books = emptyList(),
@@ -470,7 +478,11 @@ class BookViewModel(
                     workspace = null,
                     isAuthenticated = false,
                     showLoginDialog = true,
-                    authMode = AuthMode.SIGN_IN
+                    authMode = AuthMode.SIGN_IN,
+                    readingSummaries = emptyMap(),
+                    publicReadingSummaries = emptyMap(),
+                    publicBookRequests = emptyList(),
+                    adminPublicBookRequests = emptyList()
                 )
             }
         }
@@ -748,6 +760,7 @@ class BookViewModel(
             return
         }
 
+        val isPublic = _uiState.value.selectedLibraryTab == LibraryTab.PUBLIC_LIBRARY || _uiState.value.isSuperAdmin
         val uploadId = DocumentRepository.generateIdempotencyKey()
         _uiState.update {
             it.copy(
@@ -778,6 +791,7 @@ class BookViewModel(
                     idempotencyKey = uploadId,
                     snapshotFile = snapshotFile,
                     fileName = metadata.fileName,
+                    isPublic = isPublic,
                     onProgress = { bytesSent, totalBytes ->
                         val percent = if (totalBytes > 0) (bytesSent.toFloat() / totalBytes.toFloat()) * 100f else 0f
                         if (bytesSent >= totalBytes) {
@@ -795,11 +809,15 @@ class BookViewModel(
                 _uiState.update {
                     it.copy(
                         uploadState = UploadState.Success(uploadedDoc),
-                        userFeedbackMessage = "PDF '${uploadedDoc.fileName}' uploaded successfully! Reading progress reset for new document version."
+                        userFeedbackMessage = "PDF '${uploadedDoc.fileName}' uploaded successfully!"
                     )
                 }
 
-                refreshWorkspace()
+                if (isPublic) {
+                    refreshPublicBooks()
+                } else {
+                    refreshWorkspace()
+                }
             } catch (e: Exception) {
                 val errorMsg = formatErrorMessage(e)
                 val code = (e as? HttpException)?.code()

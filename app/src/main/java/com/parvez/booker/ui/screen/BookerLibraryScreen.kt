@@ -188,16 +188,24 @@ fun BookerLibraryScreen(
                         bottom = navBarPadding + 80.dp
                     )
                 ) {
-                    // Item 1: Top Bar
+                    // Item 1: Redesigned Header Bar
                     item {
+                        val isPublicTab = uiState.selectedLibraryTab == LibraryTab.PUBLIC_LIBRARY
+                        val currentBookCount = if (isPublicTab) uiState.publicBooks.size else uiState.books.size
+
                         BookerTopBar(
-                            totalCount = uiState.totalCount,
+                            totalCount = currentBookCount,
+                            userEmail = viewModel.sessionEmail,
+                            workspaceName = uiState.workspace?.name,
+                            isPublicTab = isPublicTab,
+                            isSuperAdmin = uiState.isSuperAdmin,
                             onRefresh = { viewModel.refreshBooks() },
                             onChangePassword = { viewModel.setChangePasswordDialogVisible(true) },
                             onResetPassword = { viewModel.setForgotPasswordDialogVisible(true) },
                             onLogout = { viewModel.logout() },
                             onOpenAddBook = { viewModel.setAddBookDialogVisible(true) }
                         )
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
 
                     // Item 2: Workspace Details & Quota Usage Banner (hidden for Super Admin)
@@ -445,15 +453,17 @@ fun BookerLibraryScreen(
                             key = { book -> book.id ?: book.title ?: System.identityHashCode(book) }
                         ) { book ->
                             val summary = book.id?.let { uiState.activeSummaries[it] }
+                            val isPublicTab = uiState.selectedLibraryTab == LibraryTab.PUBLIC_LIBRARY
+                            val allowPdfUpload = if (isPublicTab) uiState.isSuperAdmin else true
 
                             BookerBookCard(
                                 book = book,
                                 summary = summary,
                                 onStatusToggle = null,
-                                onUploadPdf = { selectedBook ->
+                                onUploadPdf = if (allowPdfUpload) { selectedBook ->
                                     targetBookForUpload = selectedBook
                                     pdfLauncher.launch(arrayOf("application/pdf"))
-                                },
+                                } else null,
                                 onOpenPdf = { selectedBook, doc ->
                                     activePdfReaderParams = selectedBook to doc
                                 },
@@ -583,15 +593,19 @@ fun BookerLibraryScreen(
 
             if (activePdfReaderParams != null) {
                 val (readingBook, doc) = activePdfReaderParams!!
+                val isPublic = uiState.selectedLibraryTab == LibraryTab.PUBLIC_LIBRARY || uiState.isSuperAdmin
                 val readerViewModel: ReaderViewModel = viewModel()
                 PdfReaderScreen(
                     bookId = readingBook.id ?: 0L,
                     documentId = doc.documentId,
                     bookTitle = readingBook.title ?: "Reading PDF",
+                    isPublic = isPublic,
                     viewModel = readerViewModel,
                     onBackClicked = {
-                        activePdfReaderParams = null
-                        viewModel.refreshWorkspaceAndBooks()
+                        readerViewModel.closeReader {
+                            activePdfReaderParams = null
+                            viewModel.refreshBooks()
+                        }
                     }
                 )
             }
